@@ -48,6 +48,9 @@ class SpeakerEncoder(nn.Module):
         batch_size, hidden_size). Will default to a tensor of zeros if None.
         :return: the embeddings as a tensor of shape (batch_size, embedding_size)
         """
+        # added by wuzijun, for multi GPU
+        self.lstm.flatten_parameters()
+        
         # Pass the input through the LSTM layers and retrieve all outputs, the final hidden state
         # and the final cell state.
         out, (hidden, cell) = self.lstm(utterances, hidden_init)

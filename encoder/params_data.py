@@ -1,9 +1,8 @@
 
 ## Mel-filterbank
-mel_window_length = 25  # In milliseconds
-mel_window_step = 10    # In milliseconds
-mel_n_channels = 40
-
+mel_window_length = 50  # In milliseconds
+mel_window_step = 12.5    # In milliseconds
+mel_n_channels = 80
 
 ## Audio
 sampling_rate = 16000
@@ -11,7 +10,6 @@ sampling_rate = 16000
 partials_n_frames = 160     # 1600 ms
 # Number of spectrogram frames at inference
 inference_n_frames = 80     #  800 ms
-
 
 ## Voice Activation Detection
 # Window size of the VAD. Must be either 10, 20 or 30 milliseconds.

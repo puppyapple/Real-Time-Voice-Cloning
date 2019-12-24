@@ -39,10 +39,9 @@ if __name__ == '__main__':
     ## Print some environment information (for debugging purposes)
     print("Running a test of your configuration...\n")
     if not torch.cuda.is_available():
-        print("Your PyTorch installation is not configured to use CUDA. If you have a GPU ready "
+        print("Your PyTorch installation is not configured to use CUDA. If you have a GPU ready " 
               "for deep learning, ensure that the drivers are properly installed, and that your "
-              "CUDA version matches your PyTorch installation. CPU-only inference is currently "
-              "not supported.", file=sys.stderr)
+              "CUDA version matches your PyTorch installation. CPU-only inference is currently not supported.", file=sys.stderr)
         quit(-1)
     device_id = torch.cuda.current_device()
     gpu_properties = torch.cuda.get_device_properties(device_id)

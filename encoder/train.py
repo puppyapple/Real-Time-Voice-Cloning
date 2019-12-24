@@ -34,6 +34,10 @@ def train(run_id: str, clean_data_root: Path, models_dir: Path, umap_every: int,
     
     # Create the model and the optimizer
     model = SpeakerEncoder(device, loss_device)
+    
+    # Added by wuzijun, try multi GPU train
+    # model = torch.nn.DataParallel(model).to(device)
+    
     optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate_init)
     init_step = 1
     
@@ -76,6 +80,8 @@ def train(run_id: str, clean_data_root: Path, models_dir: Path, umap_every: int,
         sync(device)
         profiler.tick("Forward pass")
         embeds_loss = embeds.view((speakers_per_batch, utterances_per_speaker, -1)).to(loss_device)
+        
+        # modified by wuzijun for multi GPU
         loss, eer = model.loss(embeds_loss)
         sync(loss_device)
         profiler.tick("Loss")
