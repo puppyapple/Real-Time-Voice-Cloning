@@ -36,12 +36,32 @@ if __name__ == "__main__":
     parser.add_argument("--visdom_server", type=str, default="http://localhost")
     parser.add_argument("--no_visdom", action="store_true", help= \
         "Disable visdom.")
+    
+    # added by wuzijun for DISTRUBUTED
+    parser.add_argument(
+        '--rank',
+        type=int,
+        default=0,
+        help='DISTRIBUTED: process rank for distributed training.')
+    parser.add_argument('--group_id',
+                        type=str,
+                        default="",
+                        help='DISTRIBUTED: process group id.')
+    
     args = parser.parse_args()
     
-    # Process the arguments
-    args.models_dir.mkdir(exist_ok=True)
+    # modified by wuzijun Process the arguments
+    if args.rank == 0:
+        args.models_dir.mkdir(exist_ok=True)
     
     # Run the training
     print_args(args, parser)
-    train(**vars(args))
+    try:
+        train(**vars(args))
+    except KeyboardInterrupt:
+        # remove_experiment_folder(OUT_PATH)
+        try:
+            sys.exit(0)
+        except SystemExit:
+            os._exit(0)  # pylint: disable=protected-access
     
