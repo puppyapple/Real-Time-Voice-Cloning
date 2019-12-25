@@ -1,0 +1,1 @@
+CUDA_VISIBLE_DEVICES="0,4" python3.7 encoder_distribute.py first_run /search/hadoop07/wuzijun/voice_data/SV2TTS/encoder/ > my_train_encoder.log

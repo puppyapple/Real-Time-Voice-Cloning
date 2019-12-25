@@ -40,7 +40,8 @@ def train(run_id: str, clean_data_root: Path, models_dir: Path, umap_every: int,
     if num_gpus > 1:
         init_distributed(rank, num_gpus, group_id,
                          'nccl', 'tcp://localhost:54321')
-    sampler = DistributedSampler_self(dataset) if num_gpus > 1 else None
+    # sampler = DistributedSampler_self(dataset) if num_gpus > 1 else None
+    sampler = None
     
     loader = SpeakerVerificationDataLoader(
         dataset,
@@ -96,15 +97,11 @@ def train(run_id: str, clean_data_root: Path, models_dir: Path, umap_every: int,
         vis.log_params()
         device_name = str(torch.cuda.get_device_name(0) if torch.cuda.is_available() else "CPU")
         vis.log_implementation({"Device": device_name})
-        
-    print("test1")
  
     # Training loop
     profiler = Profiler(summarize_every=10, disabled=False)
     for step, speaker_batch in enumerate(loader, init_step):
         profiler.tick("Blocking, waiting for batch (threaded)")
-        
-        print("test2")
         
         # Forward pass
         inputs = torch.from_numpy(speaker_batch.data).to(device)
@@ -127,8 +124,6 @@ def train(run_id: str, clean_data_root: Path, models_dir: Path, umap_every: int,
         model.do_gradient_ops()
         optimizer.step()
         profiler.tick("Parameter update")
-        
-        print("test3")
         
         # added by wuzijun, aggregate losses from processes
         if num_gpus > 1:

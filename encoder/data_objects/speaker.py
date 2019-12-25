@@ -15,6 +15,7 @@ class Speaker:
             sources = [l.split(",") for l in sources_file]
         sources = {frames_fname: wave_fpath for frames_fname, wave_fpath in sources}
         self.utterances = [Utterance(self.root.joinpath(f), w) for f, w in sources.items()]
+        # utterances: list of Utterance instance with 'get' method for a random sub frame of mel
         self.utterance_cycler = RandomCycler(self.utterances)
                
     def random_partial(self, count, n_frames):

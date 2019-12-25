@@ -15,6 +15,7 @@ class SpeakerVerificationDataset(Dataset):
             raise Exception("No speakers found. Make sure you are pointing to the directory "
                             "containing all preprocessed speaker directories.")
         self.speakers = [Speaker(speaker_dir) for speaker_dir in speaker_dirs]
+        # speaker: list of Speaker class instance(properties: list of Utterance and RandomCycler)
         self.speaker_cycler = RandomCycler(self.speakers)
 
     def __len__(self):
