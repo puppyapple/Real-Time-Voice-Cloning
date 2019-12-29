@@ -191,7 +191,7 @@ def process_utterance(wav: np.ndarray, text: str, out_dir: Path, basename: str,
     
     # Return a tuple describing this training example
     return wav_fpath.name, mel_fpath.name, "embed-%s.npy" % basename, len(wav), mel_frames, text
- 
+
  
 def embed_utterance(fpaths, encoder_model_fpath):
     if not encoder.is_loaded():
@@ -204,7 +204,7 @@ def embed_utterance(fpaths, encoder_model_fpath):
     embed = encoder.embed_utterance(wav)
     np.save(embed_fpath, embed, allow_pickle=False)
     
- 
+
 def create_embeddings(synthesizer_root: Path, encoder_model_fpath: Path, n_processes: int):
     wav_dir = synthesizer_root.joinpath("audio")
     metadata_fpath = synthesizer_root.joinpath("train.txt")

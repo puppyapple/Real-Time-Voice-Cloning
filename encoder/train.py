@@ -4,6 +4,10 @@ from encoder.params_model import *
 from encoder.model import SpeakerEncoder
 from utils.profiler import Profiler
 from pathlib import Path
+
+from apex.parallel import DistributedDataParallel as DDP
+from apex import amp
+
 import torch
 import sys
 
@@ -48,6 +52,7 @@ def train(run_id: str, clean_data_root: Path, models_dir: Path, umap_every: int,
         speakers_per_batch,
         utterances_per_speaker,
         sampler=sampler,
+        pin_memory=True,
         num_workers=20,
     )
     
@@ -61,13 +66,13 @@ def train(run_id: str, clean_data_root: Path, models_dir: Path, umap_every: int,
     # Create the model and the optimizer
     # change all to cuda
     model = SpeakerEncoder(device, loss_device)
-    
+    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate_init)
+    model, optimizer = amp.initialize(model, optimizer, opt_level="O0")
     # Added by wuzijun, try multi GPU train
     # DISTRUBUTED
     if num_gpus > 1:
-        model = apply_gradient_allreduce(model)
-    
-    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate_init)
+        model = DDP(model)
+     
     init_step = 1
     
     # Configure file path for the model
@@ -113,15 +118,18 @@ def train(run_id: str, clean_data_root: Path, models_dir: Path, umap_every: int,
         embeds_loss = embeds.view((speakers_per_batch, utterances_per_speaker, -1)).to(loss_device)
         
         # modified by wuzijun for multi GPU
-        loss, eer = model.loss(embeds_loss)
+        loss, eer = model.module.loss(embeds_loss)
         sync(loss_device)
         profiler.tick("Loss")
 
         # Backward pass
         model.zero_grad()
-        loss.backward()
+        # loss.backward()
+        with amp.scale_loss(loss, optimizer) as scaled_loss:
+            scaled_loss.backward()
         profiler.tick("Backward pass")
-        model.do_gradient_ops()
+        model.module.do_gradient_ops()
+        
         optimizer.step()
         profiler.tick("Parameter update")
         
