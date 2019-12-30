@@ -150,10 +150,13 @@ def save_best_model(model, optimizer, model_loss, best_loss, out_path,
     return best_loss
 
 
-def check_update(model, grad_clip):
+def check_update(model, grad_clip, ignore_stopnet=False):
     r'''Check model gradient against unexpected jumps and failures'''
     skip_flag = False
-    grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
+    if ignore_stopnet:
+        grad_norm = torch.nn.utils.clip_grad_norm_([param for name, param in model.named_parameters() if 'stopnet' not in name], grad_clip)
+    else:
+        grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
     if np.isinf(grad_norm):
         print(" | > Gradient is INF !!")
         skip_flag = True
@@ -283,10 +286,11 @@ def setup_model(num_chars, num_speakers, c):
         model = MyModel(num_chars=num_chars,
                         num_speakers=num_speakers,
                         r=c.r,
-                        linear_dim=1025,
-                        mel_dim=80,
+                        postnet_output_dim=c.audio['num_freq'],
+                        decoder_output_dim=c.audio['num_mels'],
                         gst=c.use_gst,
                         memory_size=c.memory_size,
+                        attn_type=c.attention_type,
                         attn_win=c.windowing,
                         attn_norm=c.attention_norm,
                         prenet_type=c.prenet_type,
@@ -295,11 +299,16 @@ def setup_model(num_chars, num_speakers, c):
                         trans_agent=c.transition_agent,
                         forward_attn_mask=c.forward_attn_mask,
                         location_attn=c.location_attn,
-                        separate_stopnet=c.separate_stopnet)
+                        attn_K=c.attention_heads,
+                        separate_stopnet=c.separate_stopnet,
+                        bidirectional_decoder=c.bidirectional_decoder)
     elif c.model.lower() == "tacotron2":
         model = MyModel(num_chars=num_chars,
                         num_speakers=num_speakers,
                         r=c.r,
+                        postnet_output_dim=c.audio['num_mels'],
+                        decoder_output_dim=c.audio['num_mels'],
+                        attn_type=c.attention_type,
                         attn_win=c.windowing,
                         attn_norm=c.attention_norm,
                         prenet_type=c.prenet_type,
@@ -308,7 +317,9 @@ def setup_model(num_chars, num_speakers, c):
                         trans_agent=c.transition_agent,
                         forward_attn_mask=c.forward_attn_mask,
                         location_attn=c.location_attn,
-                        separate_stopnet=c.separate_stopnet)
+                        attn_K=c.attention_heads,
+                        separate_stopnet=c.separate_stopnet,
+                        bidirectional_decoder=c.bidirectional_decoder)
     return model
 
 
@@ -336,9 +347,15 @@ def split_dataset(items):
 
 
 def gradual_training_scheduler(global_step, config):
+    """Setup the gradual training schedule wrt number
+    of active GPUs"""
+    num_gpus = torch.cuda.device_count()
+    if num_gpus == 0:
+        num_gpus = 1
     new_values = None
+    # we set the scheduling wrt num_gpus
     for values in config.gradual_training:
-        if global_step >= values[0]:
+        if global_step * num_gpus >= values[0]:
             new_values = values
     return new_values[1], new_values[2]
 

@@ -5,7 +5,8 @@ from TTS.layers.tacotron import Prenet, CBHG, Decoder, Encoder
 from TTS.layers.losses import L1LossMasked
 from TTS.utils.generic_utils import sequence_mask
 
-#pylint: disable=unused-variable
+# pylint: disable=unused-variable
+
 
 class PrenetTests(unittest.TestCase):
     def test_in_out(self):
@@ -29,7 +30,8 @@ class CBHGTests(unittest.TestCase):
             highway_features=80,
             gru_features=80,
             num_highways=4)
-        dummy_input = T.rand(4, 8, 128)
+        # B x D x T
+        dummy_input = T.rand(4, 128, 8) 
 
         print(layer)
         output = layer(dummy_input)
@@ -48,6 +50,8 @@ class DecoderTests(unittest.TestCase):
             memory_size=4,
             attn_windowing=False,
             attn_norm="sigmoid",
+            attn_K=5,
+            attn_type="original",
             prenet_type='original',
             prenet_dropout=True,
             forward_attn=True,
@@ -63,8 +67,8 @@ class DecoderTests(unittest.TestCase):
             dummy_input, dummy_memory, mask=None)
 
         assert output.shape[0] == 4
-        assert output.shape[1] == 1, "size not {}".format(output.shape[1])
-        assert output.shape[2] == 80 * 2, "size not {}".format(output.shape[2])
+        assert output.shape[1] == 80, "size not {}".format(output.shape[1])
+        assert output.shape[2] == 2, "size not {}".format(output.shape[2])
         assert stop_tokens.shape[0] == 4
 
     @staticmethod
@@ -76,6 +80,8 @@ class DecoderTests(unittest.TestCase):
             memory_size=4,
             attn_windowing=False,
             attn_norm="sigmoid",
+            attn_K=5,
+            attn_type="graves",
             prenet_type='original',
             prenet_dropout=True,
             forward_attn=True,
@@ -92,8 +98,8 @@ class DecoderTests(unittest.TestCase):
             dummy_input, dummy_memory, mask=None, speaker_embeddings=dummy_embed)
 
         assert output.shape[0] == 4
-        assert output.shape[1] == 1, "size not {}".format(output.shape[1])
-        assert output.shape[2] == 80 * 2, "size not {}".format(output.shape[2])
+        assert output.shape[1] == 80, "size not {}".format(output.shape[1])
+        assert output.shape[2] == 2, "size not {}".format(output.shape[2])
         assert stop_tokens.shape[0] == 4
 
 
@@ -112,6 +118,7 @@ class EncoderTests(unittest.TestCase):
 
 class L1LossMaskedTests(unittest.TestCase):
     def test_in_out(self):
+        # test input == target
         layer = L1LossMasked()
         dummy_input = T.ones(4, 8, 128).float()
         dummy_target = T.ones(4, 8, 128).float()
@@ -119,11 +126,14 @@ class L1LossMaskedTests(unittest.TestCase):
         output = layer(dummy_input, dummy_target, dummy_length)
         assert output.item() == 0.0
 
+        # test input != target
         dummy_input = T.ones(4, 8, 128).float()
         dummy_target = T.zeros(4, 8, 128).float()
         dummy_length = (T.ones(4) * 8).long()
         output = layer(dummy_input, dummy_target, dummy_length)
         assert output.item() == 1.0, "1.0 vs {}".format(output.data[0])
+
+        # test if padded values of input makes any difference
         dummy_input = T.ones(4, 8, 128).float()
         dummy_target = T.zeros(4, 8, 128).float()
         dummy_length = (T.arange(5, 9)).long()
@@ -131,3 +141,11 @@ class L1LossMaskedTests(unittest.TestCase):
             (sequence_mask(dummy_length).float() - 1.0) * 100.0).unsqueeze(2)
         output = layer(dummy_input + mask, dummy_target, dummy_length)
         assert output.item() == 1.0, "1.0 vs {}".format(output.data[0])
+
+        dummy_input = T.rand(4, 8, 128).float()
+        dummy_target = dummy_input.detach()
+        dummy_length = (T.arange(5, 9)).long()
+        mask = (
+            (sequence_mask(dummy_length).float() - 1.0) * 100.0).unsqueeze(2)
+        output = layer(dummy_input + mask, dummy_target, dummy_length)
+        assert output.item() == 0, "0 vs {}".format(output.data[0])
