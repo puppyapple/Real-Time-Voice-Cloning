@@ -1,14 +1,14 @@
 {
     "model": "Tacotron2",          
-    "run_name": "Biaobei",
-    "run_description": "tacotron2 do trim without eos and no forward attention + prenet batch norm + prenet dropout disabled",
+    "run_name": "SV2TTS-synthesis",
+    "run_description": "tacotron2 do trim without eos and no forward attention + prenet dropout",
 
     
     "audio":{
         
         "num_mels": 80,         
-        "num_freq": 2049,       
-        "sample_rate": 48000,   
+        "num_freq": 800,       
+        "sample_rate": 16000,   
         "frame_length_ms": 50,  
         "frame_shift_ms": 12.5, 
         "preemphasis": 0.98,    
@@ -21,8 +21,8 @@
         "symmetric_norm": true, 
         "max_norm": 4,          
         "clip_norm": true,      
-        "mel_fmin": 125.0,         
-        "mel_fmax": 7600.0,        
+        "mel_fmin": 0.0,         
+        "mel_fmax": 8000.0,        
         "do_trim_silence": true  
     },
 
@@ -56,8 +56,8 @@
     
     
     "memory_size": 5,              
-    "prenet_type": "bn",     
-    "prenet_dropout": false,        
+    "prenet_type": "original",     
+    "prenet_dropout": true,        
 
     
     "attention_type": "original",  
@@ -99,7 +99,7 @@
     "phoneme_language": "zh",     
 
     
-    "use_speaker_embedding": false,     
+    "use_speaker_embedding": true,     
     "style_wav_for_test": null,          
     "use_gst": false,       
 
