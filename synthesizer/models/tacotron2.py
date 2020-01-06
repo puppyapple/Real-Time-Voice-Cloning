@@ -1,11 +1,11 @@
 import copy
 import torch
 import sys
-sys.path.append("../TTS")
+sys.path.append("../synthesizer")
 from math import sqrt
 from torch import nn
-from TTS.layers.tacotron2 import Encoder, Decoder, Postnet
-from TTS.utils.generic_utils import sequence_mask
+from synthesizer.layers.tacotron2 import Encoder, Decoder, Postnet
+from synthesizer.utils.generic_utils import sequence_mask
 
 
 # TODO: match function arguments with tacotron
@@ -42,10 +42,10 @@ class Tacotron2(nn.Module):
         val = sqrt(3.0) * std  # uniform bounds for std
         self.embedding.weight.data.uniform_(-val, val)
         if num_speakers > 1:
-            self.speaker_embedding = nn.Embedding(num_speakers, 512)
-            self.speaker_embedding.weight.data.normal_(0, 0.3)
-            self.speaker_embeddings = None
-            self.speaker_embeddings_projected = None
+            # self.speaker_embedding = nn.Embedding(num_speakers, 512)
+            # self.speaker_embedding.weight.data.normal_(0, 0.3)
+            self.speaker_embeddings = True
+            #self.speaker_embeddings_projected = None
         self.encoder = Encoder(encoder_dim)
         self.decoder = Decoder(decoder_dim, self.decoder_output_dim, r, attn_type, attn_win,
                                attn_norm, prenet_type, prenet_dropout,
@@ -65,14 +65,18 @@ class Tacotron2(nn.Module):
         mel_outputs_postnet = mel_outputs_postnet.transpose(1, 2)
         return mel_outputs, mel_outputs_postnet, alignments
 
-    def forward(self, text, text_lengths, mel_specs=None, speaker_ids=None):
-        self._init_states()
+    def forward(self, text, text_lengths, mel_specs=None, speaker_embeddings=None):
+        # self._init_states()
         # compute mask for padding
         mask = sequence_mask(text_lengths).to(text.device)
+        # (B, T, char_emb_size) => (B, char_emb_size, T)
         embedded_inputs = self.embedding(text).transpose(1, 2)
+        # (B, char_emb_size, T) => (B, T, char_emb_size)
         encoder_outputs = self.encoder(embedded_inputs, text_lengths)
+        # (B, T, char_emb_size) => (B, T, speaker_emb or char_emb_size)
         encoder_outputs = self._add_speaker_embedding(encoder_outputs,
-                                                      speaker_ids)
+                                                      speaker_embeddings)
+        
         decoder_outputs, alignments, stop_tokens = self.decoder(
             encoder_outputs, mel_specs, mask)
         postnet_outputs = self.postnet(decoder_outputs)
@@ -84,11 +88,11 @@ class Tacotron2(nn.Module):
             return decoder_outputs, postnet_outputs, alignments, stop_tokens, decoder_outputs_backward, alignments_backward
         return decoder_outputs, postnet_outputs, alignments, stop_tokens
 
-    def inference(self, text, speaker_ids=None):
+    def inference(self, text, speaker_embeddings=None):
         embedded_inputs = self.embedding(text).transpose(1, 2)
         encoder_outputs = self.encoder.inference(embedded_inputs)
         encoder_outputs = self._add_speaker_embedding(encoder_outputs,
-                                                      speaker_ids)
+                                                      speaker_embeddings)
         mel_outputs, alignments, stop_tokens = self.decoder.inference(
             encoder_outputs)
         mel_outputs_postnet = self.postnet(mel_outputs)
@@ -97,14 +101,14 @@ class Tacotron2(nn.Module):
             mel_outputs, mel_outputs_postnet, alignments)
         return mel_outputs, mel_outputs_postnet, alignments, stop_tokens
 
-    def inference_truncated(self, text, speaker_ids=None):
+    def inference_truncated(self, text, speaker_embeddings=None):
         """
         Preserve model states for continuous inference
         """
         embedded_inputs = self.embedding(text).transpose(1, 2)
         encoder_outputs = self.encoder.inference_truncated(embedded_inputs)
         encoder_outputs = self._add_speaker_embedding(encoder_outputs,
-                                                      speaker_ids)
+                                                      speaker_embeddings)
         mel_outputs, alignments, stop_tokens = self.decoder.inference_truncated(
             encoder_outputs)
         mel_outputs_postnet = self.postnet(mel_outputs)
@@ -120,15 +124,19 @@ class Tacotron2(nn.Module):
         decoder_outputs_b = decoder_outputs_b.transpose(1, 2)
         return decoder_outputs_b, alignments_b
 
-    def _add_speaker_embedding(self, encoder_outputs, speaker_ids):
-        if hasattr(self, "speaker_embedding") and speaker_ids is None:
-            raise RuntimeError(" [!] Model has speaker embedding layer but speaker_id is not provided")
-        if hasattr(self, "speaker_embedding") and speaker_ids is not None:
-            speaker_embeddings = self.speaker_embedding(speaker_ids)
-
+    def _add_speaker_embedding(self, encoder_outputs, speaker_embeddings):
+        if hasattr(self, "speaker_embeddings") and speaker_embeddings is None:
+            raise RuntimeError(" [!] Model has speaker embedding layer but speaker_embedding is not provided")
+        if hasattr(self, "speaker_embeddings") and speaker_embeddings is not None:
+            # (B, speaker_emb)
+            # speaker_embeddings = self.speaker_embedding[speaker_ids]
+            # (B, 1, speaker_emb)
             speaker_embeddings.unsqueeze_(1)
+            # encoder_outputs-(B, T, char_emb_size)
+            # (B, 1, speaker_emb) => (B, T, speaker_emb)
             speaker_embeddings = speaker_embeddings.expand(encoder_outputs.size(0),
                                                            encoder_outputs.size(1),
                                                            -1)
+            # (B, T, speaker_emb or char_emb_size)
             encoder_outputs = encoder_outputs + speaker_embeddings
         return encoder_outputs

@@ -2,9 +2,9 @@
 import torch
 import copy
 from torch import nn
-from TTS.layers.tacotron import Encoder, Decoder, PostCBHG
-from TTS.utils.generic_utils import sequence_mask
-from TTS.layers.gst_layers import GST
+from synthesizer.layers.tacotron import Encoder, Decoder, PostCBHG
+from synthesizer.utils.generic_utils import sequence_mask
+from synthesizer.layers.gst_layers import GST
 
 
 class Tacotron(nn.Module):

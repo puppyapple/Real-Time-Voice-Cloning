@@ -12,26 +12,26 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 
-from TTS.datasets.TTSDataset import MyDataset
+from synthesizer.datasets.TTSDataset import MyDataset
 from distribute import (DistributedSampler, apply_gradient_allreduce,
                         init_distributed, reduce_tensor)
-from TTS.layers.losses import L1LossMasked, MSELossMasked
-from TTS.utils.audio import AudioProcessor
-from TTS.utils.generic_utils import (
+from synthesizer.layers.losses import L1LossMasked, MSELossMasked
+from synthesizer.utils.audio import AudioProcessor
+from synthesizer.utils.generic_utils import (
     NoamLR, check_update, count_parameters, create_experiment_folder,
     get_git_branch, load_config, remove_experiment_folder, save_best_model,
     save_checkpoint, adam_weight_decay, set_init_dict, copy_config_file,
     setup_model, gradual_training_scheduler, KeepAverage,
     set_weight_decay)
-from TTS.utils.logger import Logger
-from TTS.utils.speakers import load_speaker_mapping, save_speaker_mapping, \
+from synthesizer.utils.logger import Logger
+from synthesizer.utils.speakers import load_speaker_mapping, save_speaker_mapping, \
     get_speakers
-from TTS.utils.synthesis import synthesis
-from TTS.utils.text.symbols import phonemes, symbols
-from TTS.utils.visual import plot_alignment, plot_spectrogram
-from TTS.datasets.preprocess import load_meta_data
-from TTS.utils.radam import RAdam
-from TTS.utils.measures import alignment_diagonal_score
+from synthesizer.utils.synthesis import synthesis
+from synthesizer.utils.text.symbols import phonemes, symbols
+from synthesizer.utils.visual import plot_alignment, plot_spectrogram
+from synthesizer.datasets.preprocess import load_meta_data
+from synthesizer.utils.radam import RAdam
+from synthesizer.utils.measures import alignment_diagonal_score
 
 torch.backends.cudnn.enabled = True
 torch.backends.cudnn.benchmark = False
@@ -70,13 +70,13 @@ def setup_loader(ap, r, is_val=False, verbose=False):
             sampler=sampler,
             num_workers=c.num_val_loader_workers
             if is_val else c.num_loader_workers,
-            pin_memory=False)
+            pin_memory=True)
     return loader
 
 
 def format_data(data):
-    if c.use_speaker_embedding:
-        speaker_mapping = load_speaker_mapping(OUT_PATH)
+#     if c.use_speaker_embedding:
+#         speaker_mapping = load_speaker_mapping(OUT_PATH)
 
     # setup input data
     text_input = data[0]
@@ -86,16 +86,17 @@ def format_data(data):
     mel_input = data[4]
     mel_lengths = data[5]
     stop_targets = data[6]
+    speaker_embeddings = data[8]
     avg_text_length = torch.mean(text_lengths.float())
     avg_spec_length = torch.mean(mel_lengths.float())
 
-    if c.use_speaker_embedding:
-        speaker_ids = [
-            speaker_mapping[speaker_name] for speaker_name in speaker_names
-        ]
-        speaker_ids = torch.LongTensor(speaker_ids)
-    else:
-        speaker_ids = None
+#     if c.use_speaker_embedding:
+#         speaker_ids = [
+#             speaker_mapping[speaker_name] for speaker_name in speaker_names
+#         ]
+#         speaker_ids = torch.LongTensor(speaker_ids)
+#     else:
+#         speaker_ids = None
 
     # set stop targets view, we predict a single stop token per iteration.
     stop_targets = stop_targets.view(text_input.shape[0],
@@ -111,9 +112,10 @@ def format_data(data):
         mel_lengths = mel_lengths.cuda(non_blocking=True)
         linear_input = linear_input.cuda(non_blocking=True) if c.model in ["Tacotron"] else None
         stop_targets = stop_targets.cuda(non_blocking=True)
-        if speaker_ids is not None:
-            speaker_ids = speaker_ids.cuda(non_blocking=True)
-    return text_input, text_lengths, mel_input, mel_lengths, linear_input, stop_targets, speaker_ids, avg_text_length, avg_spec_length
+        speaker_embeddings = speaker_embeddings.cuda(non_blocking=True)
+#         if speaker_ids is not None:
+#             speaker_ids = speaker_ids.cuda(non_blocking=True)
+    return text_input, text_lengths, mel_input, mel_lengths, linear_input, stop_targets, speaker_embeddings, avg_text_length, avg_spec_length
 
 
 def train(model, criterion, criterion_st, optimizer, optimizer_st, scheduler,
@@ -147,7 +149,7 @@ def train(model, criterion, criterion_st, optimizer, optimizer_st, scheduler,
         start_time = time.time()
 
         # format data
-        text_input, text_lengths, mel_input, mel_lengths, linear_input, stop_targets, speaker_ids, avg_text_length, avg_spec_length = format_data(data)
+        text_input, text_lengths, mel_input, mel_lengths, linear_input, stop_targets, speaker_embeddings, avg_text_length, avg_spec_length = format_data(data)
         loader_time = time.time() - end_time
 
         global_step += 1
@@ -162,10 +164,10 @@ def train(model, criterion, criterion_st, optimizer, optimizer_st, scheduler,
         # forward pass model
         if c.bidirectional_decoder:
             decoder_output, postnet_output, alignments, stop_tokens, decoder_backward_output, alignments_backward = model(
-                text_input, text_lengths, mel_input, speaker_ids=speaker_ids)
+                text_input, text_lengths, mel_input, speaker_embeddings=speaker_embeddings)
         else:
             decoder_output, postnet_output, alignments, stop_tokens = model(
-                text_input, text_lengths, mel_input, speaker_ids=speaker_ids)
+                text_input, text_lengths, mel_input, speaker_embeddings=speaker_embeddings)
 
         # loss computation
         stop_loss = criterion_st(stop_tokens,
@@ -332,8 +334,8 @@ def train(model, criterion, criterion_st, optimizer, optimizer_st, scheduler,
 
 def evaluate(model, criterion, criterion_st, ap, global_step, epoch):
     data_loader = setup_loader(ap, model.decoder.r, is_val=True)
-    if c.use_speaker_embedding:
-        speaker_mapping = load_speaker_mapping(OUT_PATH)
+#     if c.use_speaker_embedding:
+#         speaker_mapping = load_speaker_mapping(OUT_PATH)
     model.eval()
     epoch_time = 0
     eval_values_dict = {
@@ -355,16 +357,16 @@ def evaluate(model, criterion, criterion_st, ap, global_step, epoch):
                 start_time = time.time()
 
                 # format data
-                text_input, text_lengths, mel_input, mel_lengths, linear_input, stop_targets, speaker_ids, _, _ = format_data(data)
+                text_input, text_lengths, mel_input, mel_lengths, linear_input, stop_targets, speaker_embeddings, _, _ = format_data(data)
                 assert mel_input.shape[1] % model.decoder.r == 0
 
                 # forward pass model
                 if c.bidirectional_decoder:
                     decoder_output, postnet_output, alignments, stop_tokens, decoder_backward_output, alignments_backward = model(
-                        text_input, text_lengths, mel_input, speaker_ids=speaker_ids)
+                        text_input, text_lengths, mel_input, speaker_embeddings=speaker_embeddings)
                 else:
                     decoder_output, postnet_output, alignments, stop_tokens = model(
-                        text_input, text_lengths, mel_input, speaker_ids=speaker_ids)
+                        text_input, text_lengths, mel_input, speaker_embeddings=speaker_embeddings)
 
                 # loss computation
                 stop_loss = criterion_st(
@@ -648,6 +650,8 @@ def main(args):  # pylint: disable=redefined-outer-name
             target_loss = val_loss
         best_loss = save_best_model(model, optimizer, target_loss, best_loss,
                                     OUT_PATH, global_step, epoch)
+        
+        torch.cuda.empty_cache()
 
 
 if __name__ == '__main__':

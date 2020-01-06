@@ -25,6 +25,7 @@ class AudioProcessor(object):
                  griffin_lim_iters=None,
                  do_trim_silence=False,
                  sound_norm=False,
+                 n_fft_mode=None,
                  **_):
 
         print(" > Setting up Audio Processor...")
@@ -47,7 +48,7 @@ class AudioProcessor(object):
         self.clip_norm = clip_norm
         self.do_trim_silence = do_trim_silence
         self.sound_norm = sound_norm
-        self.n_fft, self.hop_length, self.win_length = self._stft_parameters()
+        self.n_fft, self.hop_length, self.win_length = self._stft_parameters(n_fft_mode=n_fft_mode)
         assert min_level_db != 0.0, " [!] min_level_db is 0"
         members = vars(self)
         for key, value in members.items():
@@ -113,13 +114,18 @@ class AudioProcessor(object):
         else:
             return S
 
-    def _stft_parameters(self, ):
+    def _stft_parameters(self, n_fft_mode=None):
         """Compute necessary stft parameters with given time values"""
-        n_fft = (self.num_freq - 1) * 2
+        
         factor = self.frame_length_ms / self.frame_shift_ms
         assert (factor).is_integer(), " [!] frame_shift_ms should divide frame_length_ms"
         hop_length = int(self.frame_shift_ms / 1000.0 * self.sample_rate)
         win_length = int(hop_length * factor)
+        
+        if n_fft_mode is None:
+            n_fft = (self.num_freq - 1) * 2
+        else:
+            n_fft = win_length
         return n_fft, hop_length, win_length
 
     def _amp_to_db(self, x):
@@ -238,8 +244,15 @@ class AudioProcessor(object):
     def load_wav(self, filename, sr=None):
         if sr is None:
             x, sr = sf.read(filename)
+            # print(sr)
         else:
             x, sr = librosa.load(filename, sr=sr)
+            # print(sr)
+        if sr != self.sample_rate:
+            # print('resample')
+            x = librosa.resample(x, sr, self.sample_rate)
+            sr = self.sample_rate
+        # print(sr)
         if self.do_trim_silence:
             try:
                 x = self.trim_silence(x)

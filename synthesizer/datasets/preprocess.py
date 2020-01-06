@@ -2,7 +2,7 @@ import os
 from glob import glob
 import re
 import sys
-from TTS.utils.generic_utils import split_dataset
+from synthesizer.utils.generic_utils import split_dataset
 
 
 def load_meta_data(datasets):
@@ -30,18 +30,47 @@ def get_preprocessor_by_name(name):
     thismodule = sys.modules[__name__]
     return getattr(thismodule, name.lower())
 
+def aishell(root_path, meta_file):
+    """Normalizes the AIshell meta data file to TTS format"""
+    txt_file = os.path.join(root_path, meta_file)
+    items = []
+    with open(txt_file, 'r') as ttf:
+        for line in ttf:
+            cols = line.strip().strip('\n').split('|')
+            wav_file = cols[0]
+            text = cols[1]
+            speaker_name = cols[2]
+            speaker_embedding = cols[3]
+            items.append([text, wav_file, speaker_name, speaker_embedding])
+    return items
+
+def magicdata(root_path, meta_file):
+    """Normalizes the Magicdata meta data file to TTS format"""
+    txt_file = os.path.join(root_path, meta_file)
+    items = []
+    with open(txt_file, 'r') as ttf:
+        for line in ttf:
+            cols = line.strip().strip('\n').split('|')
+            wav_file = cols[0]
+            text = cols[1]
+            speaker_name = cols[2]
+            speaker_embedding = cols[3]
+            items.append([text, wav_file, speaker_name, speaker_embedding])
+    return items
+
 
 def biaobei(root_path, meta_file):
     """Normalizes the Biaobei meta data file to TTS format"""
     txt_file = os.path.join(root_path, meta_file)
     items = []
-    speaker_name = "biaobei"
     with open(txt_file, 'r') as ttf:
         for line in ttf:
-            cols = line.split('|')
+            cols = line.strip().strip('\n').split('|')
             wav_file = cols[0]
             text = cols[1]
-            items.append([text, wav_file, speaker_name])
+            speaker_name = cols[2]
+            speaker_embedding = cols[3]
+            items.append([text, wav_file, speaker_name, speaker_embedding])
     return items
 
 def tweb(root_path, meta_file):

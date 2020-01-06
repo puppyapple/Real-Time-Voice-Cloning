@@ -7,7 +7,7 @@
     "audio":{
         
         "num_mels": 80,         
-        "num_freq": 800,       
+        "num_freq": 401,       
         "sample_rate": 16000,   
         "frame_length_ms": 50,  
         "frame_shift_ms": 12.5, 
@@ -23,7 +23,8 @@
         "clip_norm": true,      
         "mel_fmin": 0.0,         
         "mel_fmax": 8000.0,        
-        "do_trim_silence": true  
+        "do_trim_silence": true,
+        "n_fft_mode": "same_as_win"
     },
 
     
@@ -35,8 +36,8 @@
     "reinit_layers": null,    
 
     
-    "batch_size": 64,       
-    "eval_batch_size":16,   
+    "batch_size": 16,       
+    "eval_batch_size":8,   
     "r": 1,                 
     "gradual_training": null, 
     "loss_masking": true,         
@@ -107,9 +108,20 @@
     "datasets":   
         [
             {
-                "name": "biaobei",
-                
-                "path": "/Biaobei/",
+                "name": "AIshell",              
+                "path": "/search/hadoop07/wuzijun/voice_data/AIshell/",
+                "meta_file_train": "audio_text_train_filelist.txt",
+                "meta_file_val": "audio_text_val_filelist.txt"
+            },
+            {
+                "name": "Magicdata",              
+                "path": "/search/hadoop07/wuzijun/voice_data/Magicdata/",
+                "meta_file_train": "audio_text_train_filelist.txt",
+                "meta_file_val": "audio_text_val_filelist.txt"
+            },
+            {
+                "name": "Biaobei",              
+                "path": "/search/hadoop07/wuzijun/voice_data/Biaobei/",
                 "meta_file_train": "audio_text_train_filelist.txt",
                 "meta_file_val": "audio_text_val_filelist.txt"
             }

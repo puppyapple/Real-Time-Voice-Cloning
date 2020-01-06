@@ -5,8 +5,8 @@ import torch
 import random
 from torch.utils.data import Dataset
 
-from TTS.utils.text import text_to_sequence, phoneme_to_sequence, pad_with_eos_bos
-from TTS.utils.data import prepare_data, prepare_tensor, prepare_stop_target
+from synthesizer.utils.text import text_to_sequence, phoneme_to_sequence, pad_with_eos_bos
+from synthesizer.utils.data import prepare_data, prepare_tensor, prepare_stop_target
 
 
 class MyDataset(Dataset):
@@ -106,7 +106,7 @@ class MyDataset(Dataset):
         return phonemes
 
     def load_data(self, idx):
-        text, wav_file, speaker_name = self.items[idx]
+        text, wav_file, speaker_name, speaker_embedding = self.items[idx]
         wav = np.asarray(self.load_wav(wav_file), dtype=np.float32)
 
         if self.use_phonemes:
@@ -117,12 +117,17 @@ class MyDataset(Dataset):
 
         assert text.size > 0, self.items[idx][1]
         assert wav.size > 0, self.items[idx][1]
-
+        
+        # add speaker embedding here
+        speaker_embedding = self.load_np(speaker_embedding.replace('\n', '') + '.npy')
+        
         sample = {
             'text': text,
             'wav': wav,
             'item_idx': self.items[idx][1],
-            'speaker_name': speaker_name
+            'speaker_name': speaker_name,
+            # add speaker embedding here
+            'speaker_embedding': speaker_embedding
         }
         return sample
 
@@ -188,6 +193,9 @@ class MyDataset(Dataset):
             text = [batch[idx]['text'] for idx in ids_sorted_decreasing]
             speaker_name = [batch[idx]['speaker_name']
                             for idx in ids_sorted_decreasing]
+            # add speaker/utturance embedding
+            speaker_embedding = [batch[idx]['speaker_embedding']
+                            for idx in ids_sorted_decreasing]
 
             # compute features
             mel = [self.ap.melspectrogram(w).astype('float32') for w in wav]
@@ -224,9 +232,10 @@ class MyDataset(Dataset):
             mel = torch.FloatTensor(mel).contiguous()
             mel_lengths = torch.LongTensor(mel_lengths)
             stop_targets = torch.FloatTensor(stop_targets)
+            speaker_embedding = torch.FloatTensor(speaker_embedding)
 
             return text, text_lenghts, speaker_name, linear, mel, mel_lengths, \
-                   stop_targets, item_idxs
+                   stop_targets, item_idxs, speaker_embedding
 
         raise TypeError(("batch must contain tensors, numbers, dicts or lists;\
                          found {}".format(type(batch[0]))))

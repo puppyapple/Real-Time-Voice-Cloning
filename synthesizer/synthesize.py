@@ -5,10 +5,10 @@ import torch
 import json
 import string
 
-from TTS.utils.synthesis import synthesis
-from TTS.utils.generic_utils import load_config, setup_model
-from TTS.utils.text.symbols import symbols, phonemes
-from TTS.utils.audio import AudioProcessor
+from synthesizer.utils.synthesis import synthesis
+from synthesizer.utils.generic_utils import load_config, setup_model
+from synthesizer.utils.text.symbols import symbols, phonemes
+from synthesizer.utils.audio import AudioProcessor
 
 
 def tts(model,

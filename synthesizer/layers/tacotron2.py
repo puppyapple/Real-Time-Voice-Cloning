@@ -62,7 +62,10 @@ class Encoder(nn.Module):
         self.rnn_state = None
 
     def forward(self, x, input_lengths):
+        # (B, char_emb_size, T) => (B, char_emb_size, T)
         x = self.convolutions(x)
+        # (B, char_emb_size, T) => (B, T, char_emb_size * 2) because of bidirectional LSTM
+        # char_emb_size == encoder_dim(in_features)
         x = x.transpose(1, 2)
         input_lengths = input_lengths.cpu().numpy()
         x = nn.utils.rnn.pack_padded_sequence(x,
@@ -74,6 +77,7 @@ class Encoder(nn.Module):
             outputs,
             batch_first=True,
         )
+        # (B, T, char_emb_size)
         return outputs
 
     def inference(self, x):
@@ -163,6 +167,7 @@ class Decoder(nn.Module):
         B = inputs.size(0)
         memory = torch.zeros(1, device=inputs.device).repeat(B,
                              self.memory_dim * self.r)
+        # (B, memory_dim * r)
         return memory
 
     def _init_states(self, inputs, mask, keep_states=False):
@@ -250,6 +255,7 @@ class Decoder(nn.Module):
 
     def forward(self, inputs, memories, mask, speaker_embeddings=None):
         memory = self.get_go_frame(inputs).unsqueeze(0)
+        # (T_decoder, B, memory_dim)
         memories = self._reshape_memory(memories)
         memories = torch.cat((memory, memories), dim=0)
         memories = self._update_memory(memories)

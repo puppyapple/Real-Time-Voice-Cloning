@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 import sys
-sys.path.append('../TTS')
+sys.path.append('../synthesizer')
 import re
 import phonemizer
 from phonemizer.phonemize import phonemize
-from TTS.utils.text import cleaners
-from TTS.utils.text.symbols import symbols, phonemes, _phoneme_punctuations, _bos, \
+from synthesizer.utils.text import cleaners
+from synthesizer.utils.text.symbols import symbols, phonemes, _phoneme_punctuations, _bos, \
     _eos
 
 # Mappings from symbol to numeric ID and vice versa:
