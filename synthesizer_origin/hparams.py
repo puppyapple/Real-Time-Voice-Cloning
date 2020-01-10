@@ -4,7 +4,7 @@ from tensorflow.contrib.training import HParams
 hparams = HParams(
     # Comma-separated list of cleaners to run on text prior to training and eval. For non-English
     # text, you may want to use "basic_cleaners" or "transliteration_cleaners".
-    cleaners="english_cleaners",
+    cleaners="basic_cleaners",
     
     # If you only have 1 GPU or want to use only one GPU, please set num_gpus=0 and specify the 
     # GPU idx on run. example:
@@ -90,12 +90,12 @@ hparams = HParams(
 	# showing black silent regions on top), then restart from step 2.
     num_mels=80,  # Number of mel-spectrogram channels and local conditioning dimensionality
     #  network
-    rescale=True,  # Whether to rescale audio prior to preprocessing
+    rescale=False,  # Whether to rescale audio prior to preprocessing
     rescaling_max=0.9,  # Rescaling value
     # Whether to clip silence in Audio (at beginning and end of audio only, not the middle)
     # train samples of lengths between 3sec and 14sec are more than enough to make a model capable
     # of good parallelization.
-    clip_mels_length=True,
+    clip_mels_length=False,
     # For cases of OOM (Not really recommended, only use if facing unsolvable OOM errors, 
 	# also consider clipping your samples to smaller chunks)
     max_mel_frames=900,
@@ -144,15 +144,15 @@ hparams = HParams(
     # Spectrogram Pre-Emphasis (Lfilter: Reduce spectrogram noise and helps model certitude 
 	# levels. Also allows for better G&L phase reconstruction)
     preemphasize=True,  # whether to apply filter
-    preemphasis=0.97,  # filter coefficient.
+    preemphasis=0.98,  # filter coefficient.
     
     # Limits
     min_level_db=-100,
     ref_level_db=20,
-    fmin=55,
+    fmin=0,
     # Set this to 55 if your speaker is male! if female, 95 should help taking off noise. (To 
 	# test depending on dataset. Pitch info: male~[65, 260], female~[100, 525])
-    fmax=7600,  # To be increased/reduced depending on data.
+    fmax=8000,  # To be increased/reduced depending on data.
     
     # Griffin Lim
     power=1.5,

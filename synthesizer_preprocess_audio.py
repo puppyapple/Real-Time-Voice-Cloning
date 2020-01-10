@@ -1,5 +1,5 @@
-from synthesizer.preprocess import preprocess_librispeech
-from synthesizer.hparams import hparams
+from synthesizer_origin.preprocess import preprocess_mydata
+from synthesizer_origin.hparams import hparams
 from utils.argutils import print_args
 from pathlib import Path
 import argparse
@@ -37,4 +37,4 @@ if __name__ == "__main__":
     # Preprocess the dataset
     print_args(args, parser)
     args.hparams = hparams.parse(args.hparams)
-    preprocess_librispeech(**vars(args))    
+    preprocess_mydata(**vars(args))    

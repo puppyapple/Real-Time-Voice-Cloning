@@ -5,7 +5,7 @@ from itertools import chain
 
 from encoder import inference as encoder
 from pathlib import Path
-from utils import logmmse
+from utils import logmmse, alignment
 from tqdm import tqdm
 import numpy as np
 import librosa
@@ -52,31 +52,88 @@ def preprocess_librispeech(datasets_root: Path, out_dir: Path, n_processes: int,
     print("Max audio timesteps length: %d" % max(int(m[3]) for m in metadata))
 
 
+def preprocess_mydata(datasets_root: Path, out_dir: Path, n_processes: int, 
+                           skip_existing: bool, hparams):
+    # Gather the input directories
+    # dataset_root = datasets_root.joinpath("LibriSpeech")
+    input_dirs = [datasets_root.joinpath('AIshell/wav'), datasets_root.joinpath('Magicdata/wav')]
+    print("\n    ".join(map(str, ["Using data from:"] + input_dirs)))
+    assert all(input_dir.exists() for input_dir in input_dirs)
+    
+    # Create the output directories for each output file type
+    out_dir.joinpath("mels").mkdir(exist_ok=True)
+    out_dir.joinpath("audio").mkdir(exist_ok=True)
+    
+    # Create a metadata file
+    metadata_fpath = out_dir.joinpath("all.txt")
+    metadata_file = metadata_fpath.open("a" if skip_existing else "w", encoding="utf-8")
+
+    # Preprocess the dataset
+    speaker_dirs = list(chain.from_iterable(input_dir.glob("*") for input_dir in input_dirs))
+    # print(speaker_dirs)
+    func = partial(preprocess_speaker, out_dir=out_dir, skip_existing=skip_existing, 
+                   hparams=hparams)
+    job = Pool(n_processes).imap(func, speaker_dirs)
+    for speaker_metadata in tqdm(job, "MyDataset", len(speaker_dirs), unit="speakers"):
+        for metadatum in speaker_metadata:
+            metadata_file.write("|".join(str(x) for x in metadatum) + "\n")
+    metadata_file.close()
+
+    # Verify the contents of the metadata file
+    with metadata_fpath.open("r", encoding="utf-8") as metadata_file:
+        metadata = [line.split("|") for line in metadata_file]
+    mel_frames = sum([int(m[4]) for m in metadata])
+    timesteps = sum([int(m[3]) for m in metadata])
+    sample_rate = hparams.sample_rate
+    hours = (timesteps / sample_rate) / 3600
+    print("The dataset consists of %d utterances, %d mel frames, %d audio timesteps (%.2f hours)." %
+          (len(metadata), mel_frames, timesteps, hours))
+    print("Max input length (text chars): %d" % max(len(m[5]) for m in metadata))
+    print("Max mel frames length: %d" % max(int(m[4]) for m in metadata))
+    print("Max audio timesteps length: %d" % max(int(m[3]) for m in metadata))
+    
 def preprocess_speaker(speaker_dir, out_dir: Path, skip_existing: bool, hparams):
     metadata = []
-    for book_dir in speaker_dir.glob("*"):
+    alignments = []
+    alignment_files = speaker_dir.glob("*.alignment.txt")
+    while True:
         # Gather the utterance audios and texts
+        # print(book_dir)
         try:
-            alignments_fpath = next(book_dir.glob("*.alignment.txt"))
+            alignments_fpath = next(alignment_files)
+            # print(alignments)
             with alignments_fpath.open("r") as alignments_file:
-                alignments = [line.rstrip().split(" ") for line in alignments_file]
-        except StopIteration:
-            # A few alignment files will be missing
-            continue
-        
-        # Iterate over each entry in the alignments file
-        for wav_fname, words, end_times in alignments:
-            wav_fpath = book_dir.joinpath(wav_fname + ".flac")
+                # alignments.append(list(alignments_file)[0].rstrip().split(" "))
+                wav_fname, words, end_times = list(alignments_file)[0].rstrip().split(" ")
+
+            wav_fpath = speaker_dir.joinpath(wav_fname + ".wav")
             assert wav_fpath.exists()
             words = words.replace("\"", "").split(",")
             end_times = list(map(float, end_times.replace("\"", "").split(",")))
-            
+
             # Process each sub-utterance
             wavs, texts = split_on_silences(wav_fpath, words, end_times, hparams)
             for i, (wav, text) in enumerate(zip(wavs, texts)):
                 sub_basename = "%s_%02d" % (wav_fname, i)
                 metadata.append(process_utterance(wav, text, out_dir, sub_basename, 
                                                   skip_existing, hparams))
+        except StopIteration:
+            # A few alignment files will be missing
+            break
+        # print(alignments)
+        # Iterate over each entry in the alignments file
+#     for wav_fname, words, end_times in alignments:
+#         wav_fpath = speaker_dir.joinpath(wav_fname + ".wav")
+#         assert wav_fpath.exists()
+#         words = words.replace("\"", "").split(",")
+#         end_times = list(map(float, end_times.replace("\"", "").split(",")))
+
+#         # Process each sub-utterance
+#         wavs, texts = split_on_silences(wav_fpath, words, end_times, hparams)
+#         for i, (wav, text) in enumerate(zip(wavs, texts)):
+#             sub_basename = "%s_%02d" % (wav_fname, i)
+#             metadata.append(process_utterance(wav, text, out_dir, sub_basename, 
+#                                               skip_existing, hparams))
     
     return [m for m in metadata if m is not None]
 
@@ -91,10 +148,10 @@ def split_on_silences(wav_fpath, words, end_times, hparams):
     start_times = np.array([0.0] + end_times[:-1])
     end_times = np.array(end_times)
     assert len(words) == len(end_times) == len(start_times)
-    assert words[0] == "" and words[-1] == ""
+    assert words[0] == "None" and words[-1] == "None"
     
     # Find pauses that are too long
-    mask = (words == "") & (end_times - start_times >= hparams.silence_min_duration_split)
+    mask = (words == "None") & (end_times - start_times >= hparams.silence_min_duration_split)
     mask[0] = mask[-1] = True
     breaks = np.where(mask)[0]
 
@@ -134,7 +191,7 @@ def split_on_silences(wav_fpath, words, end_times, hparams):
     segment_times = [[end_times[start], start_times[end]] for start, end in segments]
     segment_times = (np.array(segment_times) * hparams.sample_rate).astype(np.int)
     wavs = [wav[segment_time[0]:segment_time[1]] for segment_time in segment_times]
-    texts = [" ".join(words[start + 1:end]).replace("  ", " ") for start, end in segments]
+    texts = [" ".join(words[start + 1:end]).replace(" None", " ") for start, end in segments]
     
     # # DEBUG: play the audio segments (run with -n=1)
     # import sounddevice as sd
@@ -172,12 +229,15 @@ def process_utterance(wav: np.ndarray, text: str, out_dir: Path, basename: str,
     mel_fpath = out_dir.joinpath("mels", "mel-%s.npy" % basename)
     wav_fpath = out_dir.joinpath("audio", "audio-%s.npy" % basename)
     if skip_existing and mel_fpath.exists() and wav_fpath.exists():
+        # print("yes")
         return None
     
     # Skip utterances that are too short
     if len(wav) < hparams.utterance_min_duration * hparams.sample_rate:
         return None
     
+    if np.isnan(wav).any() or np.isinf(wav).any():
+        return None
     # Compute the mel spectrogram
     mel_spectrogram = audio.melspectrogram(wav, hparams).astype(np.float32)
     mel_frames = mel_spectrogram.shape[1]
@@ -213,7 +273,7 @@ def create_embeddings(synthesizer_root: Path, encoder_model_fpath: Path, n_proce
     metadata_fpath_train = synthesizer_root.joinpath("audio_text_train_filelist.txt")
     metadata_fpath_val = synthesizer_root.joinpath("audio_text_val_filelist.txt")
     assert wav_dir.exists() and metadata_fpath_train.exists() and metadata_fpath_val.exists()
-    embed_dir = synthesizer_root.joinpath("embed")
+    embed_dir = synthesizer_root.joinpath("embed_new")
     embed_dir.mkdir(exist_ok=True)
     
     # Gather the input wave filepath and the target output embed filepath

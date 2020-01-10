@@ -36,7 +36,7 @@
     "reinit_layers": null,    
 
     
-    "batch_size": 16,       
+    "batch_size": 64,       
     "eval_batch_size":8,   
     "r": 1,                 
     "gradual_training": null, 
@@ -116,12 +116,6 @@
             {
                 "name": "Magicdata",              
                 "path": "/search/hadoop07/wuzijun/voice_data/Magicdata/",
-                "meta_file_train": "audio_text_train_filelist.txt",
-                "meta_file_val": "audio_text_val_filelist.txt"
-            },
-            {
-                "name": "Biaobei",              
-                "path": "/search/hadoop07/wuzijun/voice_data/Biaobei/",
                 "meta_file_train": "audio_text_train_filelist.txt",
                 "meta_file_val": "audio_text_val_filelist.txt"
             }

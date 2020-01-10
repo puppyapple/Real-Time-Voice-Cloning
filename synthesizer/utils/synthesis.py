@@ -29,17 +29,17 @@ def compute_style_mel(style_wav, ap, use_cuda):
     return style_mel
 
 
-def run_model(model, inputs, CONFIG, truncated, speaker_id=None, style_mel=None):
+def run_model(model, inputs, CONFIG, truncated, speaker_embeddings=None, style_mel=None):
     if CONFIG.use_gst:
         decoder_output, postnet_output, alignments, stop_tokens = model.inference(
-            inputs, style_mel=style_mel, speaker_ids=speaker_id)
+            inputs, style_mel=style_mel, speaker_embeddings=speaker_embeddings)
     else:
         if truncated:
             decoder_output, postnet_output, alignments, stop_tokens = model.inference_truncated(
-                inputs, speaker_ids=speaker_id)
+                inputs, speaker_embeddings=speaker_embeddings)
         else:
             decoder_output, postnet_output, alignments, stop_tokens = model.inference(
-                inputs, speaker_ids=speaker_id)
+                inputs, speaker_embeddings=speaker_embeddings)
     return decoder_output, postnet_output, alignments, stop_tokens
 
 
@@ -101,12 +101,12 @@ def synthesis(model,
         style_mel = compute_style_mel(style_wav, ap, use_cuda)
     # preprocess the given text
     inputs = text_to_seqvec(text, CONFIG, use_cuda)
-    speaker_id = id_to_torch(speaker_id)
-    if speaker_id is not None and use_cuda:
-        speaker_id = speaker_id.cuda()
+#     speaker_id = id_to_torch(speaker_id)
+#     if speaker_id is not None and use_cuda:
+#         speaker_id = speaker_id.cuda()
     # synthesize voice
     decoder_output, postnet_output, alignments, stop_tokens = run_model(
-        model, inputs, CONFIG, truncated, speaker_id, style_mel)
+        model, inputs, CONFIG, truncated, speaker_embeddings, style_mel)
     # convert outputs to numpy
     postnet_output, decoder_output, alignment = parse_outputs(
         postnet_output, decoder_output, alignments)
@@ -123,7 +123,7 @@ def synthesis2(model,
               CONFIG,
               use_cuda,
               ap,
-              speaker_id=None,
+              speaker_embeddings=None,
               style_wav=None,
               truncated=False,
               enable_eos_bos_chars=False, #pylint: disable=unused-argument
@@ -151,12 +151,12 @@ def synthesis2(model,
         style_mel = compute_style_mel(style_wav, ap, use_cuda)
     # preprocess the given text
     inputs = text_to_seqvec(text, CONFIG, use_cuda)
-    speaker_id = id_to_torch(speaker_id)
-    if speaker_id is not None and use_cuda:
-        speaker_id = speaker_id.cuda()
+#     speaker_id = id_to_torch(speaker_id)
+#     if speaker_id is not None and use_cuda:
+#         speaker_id = speaker_id.cuda()
     # synthesize voice
     decoder_output, postnet_output, alignments, stop_tokens = run_model(
-        model, inputs, CONFIG, truncated, speaker_id, style_mel)
+        model, inputs, CONFIG, truncated, speaker_embeddings, style_mel)
     # convert outputs to numpy
     postnet_output, decoder_output, alignment = parse_outputs(
         postnet_output, decoder_output, alignments)

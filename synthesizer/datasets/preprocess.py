@@ -2,6 +2,7 @@ import os
 from glob import glob
 import re
 import sys
+import random
 from synthesizer.utils.generic_utils import split_dataset
 
 
@@ -22,6 +23,7 @@ def load_meta_data(datasets):
             meta_data_eval = preprocessor(root_path, meta_file_val)
         meta_data_train_all += meta_data_train
         meta_data_eval_all += meta_data_eval
+        random.shuffle(meta_data_train_all)
     return meta_data_train_all, meta_data_eval_all
 
 
