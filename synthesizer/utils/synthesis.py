@@ -74,7 +74,7 @@ def synthesis(model,
               CONFIG,
               use_cuda,
               ap,
-              speaker_id=None,
+              speaker_embeddings=None,
               style_wav=None,
               truncated=False,
               enable_eos_bos_chars=False, #pylint: disable=unused-argument

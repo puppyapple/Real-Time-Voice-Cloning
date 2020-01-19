@@ -254,41 +254,33 @@ def process_utterance(wav: np.ndarray, text: str, out_dir: Path, basename: str,
     return wav_fpath.name, mel_fpath.name, "embed-%s.npy" % basename, len(wav), mel_frames, text
 
  
-def embed_utterance(fpaths, encoder_model_fpath, ap):
+def embed_utterance(fpaths, encoder_model_fpath):
     if not encoder.is_loaded():
         encoder.load_model(encoder_model_fpath)
 
     # Compute the speaker embedding of the utterance
     wav_fpath, embed_fpath = fpaths
-    # load wav use TTS audio processor
-    wav = ap.load_wav(wav_fpath)
+    wav = np.load(wav_fpath)
     wav = encoder.preprocess_wav(wav)
     embed = encoder.embed_utterance(wav)
     np.save(embed_fpath, embed, allow_pickle=False)
     
 
-def create_embeddings(synthesizer_root: Path, encoder_model_fpath: Path, n_processes: int, ap, config_path=None):
-    wav_dir = synthesizer_root.joinpath("wav")
-    # modified for my implementation
-    metadata_fpath_train = synthesizer_root.joinpath("audio_text_train_filelist.txt")
-    metadata_fpath_val = synthesizer_root.joinpath("audio_text_val_filelist.txt")
-    assert wav_dir.exists() and metadata_fpath_train.exists() and metadata_fpath_val.exists()
-    embed_dir = synthesizer_root.joinpath("embed_new")
+def create_embeddings(synthesizer_root: Path, encoder_model_fpath: Path, n_processes: int):
+    wav_dir = synthesizer_root.joinpath("audio")
+    metadata_fpath = synthesizer_root.joinpath("all.txt")
+    assert wav_dir.exists() and metadata_fpath.exists()
+    embed_dir = synthesizer_root.joinpath("embed")
     embed_dir.mkdir(exist_ok=True)
     
     # Gather the input wave filepath and the target output embed filepath
-    with metadata_fpath_train.open("r") as metadata_file_train:
-        metadata_train = [line.strip().split("|") for line in metadata_file_train]
-        fpaths_train = [(m[0], m[3]) for m in metadata_train]
+    with metadata_fpath.open("r") as metadata_file:
+        metadata = [line.split("|") for line in metadata_file]
+        fpaths = [(wav_dir.joinpath(m[0]), embed_dir.joinpath(m[2])) for m in metadata]
         
-    with metadata_fpath_val.open("r") as metadata_file_val:
-        metadata_val = [line.split("|") for line in metadata_file_val]
-        fpaths_val = [(m[0], m[3]) for m in metadata_val]
-        
-    fpaths = fpaths_train + fpaths_val
     # TODO: improve on the multiprocessing, it's terrible. Disk I/O is the bottleneck here.
     # Embed the utterances in separate threads
-    func = partial(embed_utterance, encoder_model_fpath=encoder_model_fpath, ap=ap)
+    func = partial(embed_utterance, encoder_model_fpath=encoder_model_fpath)
     job = Pool(n_processes).imap(func, fpaths)
     list(tqdm(job, "Embedding", len(fpaths), unit="utterances"))
     

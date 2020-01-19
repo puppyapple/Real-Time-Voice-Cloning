@@ -32,6 +32,23 @@ def get_preprocessor_by_name(name):
     thismodule = sys.modules[__name__]
     return getattr(thismodule, name.lower())
 
+def alldata(root_path, meta_file):
+    """Normalizes the AIshell meta data file to TTS format"""
+    txt_file = os.path.join(root_path, meta_file)
+    items = []
+    # print(root_path)
+    with open(txt_file, 'r') as ttf:
+        for line in ttf:
+            cols = line.strip().strip('\n').split('|')
+            mel_file = os.path.join(root_path, f'mels/{cols[1]}')
+            # print(mel_file)
+            text = cols[5]
+            # speaker_name = cols[2]
+            speaker_embedding = os.path.join(root_path, f'embed/{cols[2]}')
+            items.append([text, mel_file, speaker_embedding])
+    return items
+
+
 def aishell(root_path, meta_file):
     """Normalizes the AIshell meta data file to TTS format"""
     txt_file = os.path.join(root_path, meta_file)

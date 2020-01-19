@@ -106,8 +106,11 @@ class MyDataset(Dataset):
         return phonemes
 
     def load_data(self, idx):
-        text, wav_file, speaker_name, speaker_embedding = self.items[idx]
-        wav = np.asarray(self.load_wav(wav_file), dtype=np.float32)
+        text, mel_file, speaker_embedding = self.items[idx]
+        mel = self.load_np(mel_file)
+        # print(mel.shape)
+        if mel.shape[1] == 80:
+                mel = mel.T
 
         if self.use_phonemes:
             text = self._load_or_generate_phoneme_sequence(wav_file, text)
@@ -116,16 +119,15 @@ class MyDataset(Dataset):
                 text_to_sequence(text, [self.cleaners]), dtype=np.int32)
 
         assert text.size > 0, self.items[idx][1]
-        assert wav.size > 0, self.items[idx][1]
+        # assert wav.size > 0, self.items[idx][1]
         
         # add speaker embedding here
-        speaker_embedding = self.load_np(speaker_embedding.replace('\n', '') + '.npy')
+        speaker_embedding = self.load_np(speaker_embedding)
         
         sample = {
             'text': text,
-            'wav': wav,
+            'mel': mel,
             'item_idx': self.items[idx][1],
-            'speaker_name': speaker_name,
             # add speaker embedding here
             'speaker_embedding': speaker_embedding
         }
@@ -134,8 +136,8 @@ class MyDataset(Dataset):
     def sort_items(self):
         r"""Sort instances based on text length in ascending order"""
         lengths = np.array([len(ins[0]) for ins in self.items])
-
-        idxs = np.argsort(lengths)
+        # modified to descending order test
+        idxs = np.argsort(lengths)[::-1]
         new_items = []
         ignored = []
         for i, idx in enumerate(idxs):
@@ -186,20 +188,19 @@ class MyDataset(Dataset):
             text_lenghts, ids_sorted_decreasing = torch.sort(
                 torch.LongTensor(text_lenghts), dim=0, descending=True)
 
-            wav = [batch[idx]['wav'] for idx in ids_sorted_decreasing]
+            # wav = [batch[idx]['wav'] for idx in ids_sorted_decreasing]
             item_idxs = [
                 batch[idx]['item_idx'] for idx in ids_sorted_decreasing
             ]
             text = [batch[idx]['text'] for idx in ids_sorted_decreasing]
-            speaker_name = [batch[idx]['speaker_name']
-                            for idx in ids_sorted_decreasing]
+            # speaker_name = [batch[idx]['speaker_name'] for idx in ids_sorted_decreasing]
             # add speaker/utturance embedding
             speaker_embedding = [batch[idx]['speaker_embedding']
                             for idx in ids_sorted_decreasing]
 
-            # compute features
-            mel = [self.ap.melspectrogram(w).astype('float32') for w in wav]
-            linear = [self.ap.spectrogram(w).astype('float32') for w in wav]
+            # mel features
+            mel = [batch[idx]['mel'] for idx in ids_sorted_decreasing]
+            # linear = [self.ap.spectrogram(w).astype('float32') for w in wav]
 
             mel_lengths = [m.shape[1] for m in mel] 
 
@@ -214,27 +215,27 @@ class MyDataset(Dataset):
 
             # PAD sequences with longest instance in the batch
             text = prepare_data(text).astype(np.int32)
-            wav = prepare_data(wav)
+            # wav = prepare_data(wav)
 
             # PAD features with longest instance
-            linear = prepare_tensor(linear, self.outputs_per_step)
+            # linear = prepare_tensor(linear, self.outputs_per_step)
             mel = prepare_tensor(mel, self.outputs_per_step)
-            assert mel.shape[2] == linear.shape[2]
+            # assert mel.shape[2] == linear.shape[2]
 
             # B x D x T --> B x T x D
-            linear = linear.transpose(0, 2, 1)
+            # linear = linear.transpose(0, 2, 1)
             mel = mel.transpose(0, 2, 1)
 
             # convert things to pytorch
             text_lenghts = torch.LongTensor(text_lenghts)
             text = torch.LongTensor(text)
-            linear = torch.FloatTensor(linear).contiguous()
+            # linear = torch.FloatTensor(linear).contiguous()
             mel = torch.FloatTensor(mel).contiguous()
             mel_lengths = torch.LongTensor(mel_lengths)
             stop_targets = torch.FloatTensor(stop_targets)
             speaker_embedding = torch.FloatTensor(speaker_embedding)
 
-            return text, text_lenghts, speaker_name, linear, mel, mel_lengths, \
+            return text, text_lenghts, None, None, mel, mel_lengths, \
                    stop_targets, item_idxs, speaker_embedding
 
         raise TypeError(("batch must contain tensors, numbers, dicts or lists;\

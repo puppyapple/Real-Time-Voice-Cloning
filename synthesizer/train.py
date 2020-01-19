@@ -546,8 +546,7 @@ def main(args):  # pylint: disable=redefined-outer-name
             speaker_mapping = {name: i for i, name in enumerate(speakers)}
         save_speaker_mapping(OUT_PATH, speaker_mapping)
         num_speakers = len(speaker_mapping)
-        print("Training with {} speakers: {}".format(num_speakers,
-                                                     ", ".join(speakers)))
+        # print("Training with {} speakers: {}".format(num_speakers,                                                     ", ".join(speakers)))
     else:
         num_speakers = 0
 

@@ -23,7 +23,7 @@
         "clip_norm": true,      
         "mel_fmin": 0.0,         
         "mel_fmax": 8000.0,        
-        "do_trim_silence": true,
+        "do_trim_silence": false,
         "n_fft_mode": "same_as_win"
     },
 
@@ -36,7 +36,7 @@
     "reinit_layers": null,    
 
     
-    "batch_size": 64,       
+    "batch_size": 16,       
     "eval_batch_size":8,   
     "r": 1,                 
     "gradual_training": null, 
@@ -57,8 +57,8 @@
     
     
     "memory_size": 5,              
-    "prenet_type": "original",     
-    "prenet_dropout": true,        
+    "prenet_type": "bn",     
+    "prenet_dropout": false,        
 
     
     "attention_type": "original",  
@@ -108,16 +108,10 @@
     "datasets":   
         [
             {
-                "name": "AIshell",              
-                "path": "/search/hadoop07/wuzijun/voice_data/AIshell/",
-                "meta_file_train": "audio_text_train_filelist.txt",
-                "meta_file_val": "audio_text_val_filelist.txt"
-            },
-            {
-                "name": "Magicdata",              
-                "path": "/search/hadoop07/wuzijun/voice_data/Magicdata/",
-                "meta_file_train": "audio_text_train_filelist.txt",
-                "meta_file_val": "audio_text_val_filelist.txt"
+                "name": "alldata",              
+                "path": "/search/hadoop07/wuzijun/voice_data/SV2TTS/synthesizer/",
+                "meta_file_train": "train_filelist.txt",
+                "meta_file_val": "val_filelist.txt"
             }
         ]
 

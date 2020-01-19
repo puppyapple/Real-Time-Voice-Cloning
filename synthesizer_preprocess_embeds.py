@@ -14,13 +14,13 @@ if __name__ == "__main__":
     parser.add_argument("synthesizer_root", type=Path, help=\
         "Path to the synthesizer training data that contains the audios and the train.txt file. "
         "If you let everything as default, it should be <datasets_root>/SV2TTS/synthesizer/.")
-    parser.add_argument(
-        '-c',
-        '--config_path',
-        type=str,
-        help='Path to config file for training.',
-        required=True
-    )
+#     parser.add_argument(
+#         '-c',
+#         '--config_path',
+#         type=str,
+#         help='Path to config file for training.',
+#         required=True
+#     )
     parser.add_argument("-e", "--encoder_model_fpath", type=Path, 
                         default="encoder/saved_models/pretrained.pt", help=\
         "Path your trained encoder model.")
@@ -31,6 +31,6 @@ if __name__ == "__main__":
     
     # Preprocess the dataset
     print_args(args, parser)
-    c = load_config(args.config_path)
-    ap = AudioProcessor(**c.audio)
-    create_embeddings(**vars(args), ap=ap)    
+    # c = load_config(args.config_path)
+    # ap = AudioProcessor(**c.audio)
+    create_embeddings(**vars(args))    
