@@ -106,7 +106,8 @@ class MyDataset(Dataset):
         return phonemes
 
     def load_data(self, idx):
-        text, mel_file, speaker_embedding = self.items[idx]
+        text, wav_file, mel_file, speaker_embedding = self.items[idx]
+        wav = self.load_np(wav_file)
         mel = self.load_np(mel_file)
         # print(mel.shape)
         if mel.shape[1] == 80:
@@ -126,8 +127,9 @@ class MyDataset(Dataset):
         
         sample = {
             'text': text,
+            'wav': wav,
             'mel': mel,
-            'item_idx': self.items[idx][1],
+            'item_idx': wav_file,
             # add speaker embedding here
             'speaker_embedding': speaker_embedding
         }
@@ -188,7 +190,7 @@ class MyDataset(Dataset):
             text_lenghts, ids_sorted_decreasing = torch.sort(
                 torch.LongTensor(text_lenghts), dim=0, descending=True)
 
-            # wav = [batch[idx]['wav'] for idx in ids_sorted_decreasing]
+            wav = [batch[idx]['wav'] for idx in ids_sorted_decreasing]
             item_idxs = [
                 batch[idx]['item_idx'] for idx in ids_sorted_decreasing
             ]
@@ -236,7 +238,7 @@ class MyDataset(Dataset):
             speaker_embedding = torch.FloatTensor(speaker_embedding)
 
             return text, text_lenghts, None, None, mel, mel_lengths, \
-                   stop_targets, item_idxs, speaker_embedding
+                   stop_targets, item_idxs, speaker_embedding, wav
 
         raise TypeError(("batch must contain tensors, numbers, dicts or lists;\
                          found {}".format(type(batch[0]))))

@@ -40,12 +40,13 @@ def alldata(root_path, meta_file):
     with open(txt_file, 'r') as ttf:
         for line in ttf:
             cols = line.strip().strip('\n').split('|')
+            wav_file = os.path.join(root_path, f'audio/{cols[0]}')
             mel_file = os.path.join(root_path, f'mels/{cols[1]}')
             # print(mel_file)
             text = cols[5]
             # speaker_name = cols[2]
             speaker_embedding = os.path.join(root_path, f'embed/{cols[2]}')
-            items.append([text, mel_file, speaker_embedding])
+            items.append([text, wav_file, mel_file, speaker_embedding])
     return items
 
 

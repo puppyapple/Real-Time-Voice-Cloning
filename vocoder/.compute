@@ -1,8 +1,17 @@
 #!/bin/bash
-yes | apt-get install libsndfile1
-pip3 install https://download.pytorch.org/whl/cu100/torch-1.1.0-cp36-cp36m-linux_x86_64.whl
-pip3 install -r requirements.txt
-# python3 preprocess_data.py --config_path config_libri360.json --num_procs 16 --out_path /data/rw/home/LibriTTS/wavernn_360/ --data_path /data/rw/home/LibriTTS/all_wavs_360/
-# ln -s /data/rw/home/LibriTTS/all_wavs_360/ wavernn_360/wavs/
-# python3 distribute.py --config_path config_libri360.json  --data_path /data/rw/home/LibriTTS/wavernn_360/  --output_path ../keep/  
+echo "Eren"
+yes | apt-get install sox
+yes | apt-get install ffmpeg
+yes | apt-get install espeak 
+yes | apt-get install tmux
+yes | apt-get install zsh
+sh -c "$(curl -fsSL https://raw.githubusercontent.com/robbyrussell/oh-my-zsh/master/tools/install.sh)"
+# pip3 install https://download.pytorch.org/whl/cu100/torch-1.3.0%2Bcu100-cp36-cp36m-linux_x86_64.whl
+# pip3 install tensorflow
+# python3 setup.py develop
+# python3 distribute.py --config_path config.json  --data_path /data/ro/shared/data/keithito/LJSpeech-1.1/
+# cp -R ${USER_DIR}/Mozilla_22050 ../tmp/
+# python3 distribute.py --config_path config_tacotron_gst.json  --data_path ../tmp/Mozilla_22050/
+# python3 distribute.py --config_path config.json  --data_path /data/rw/home/LibriTTS/train-clean-360
+# python3 distribute.py --config_path config.json
 while true; do sleep 1000000; done
